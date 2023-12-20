@@ -13,11 +13,12 @@ static SAUCE_BYTES: &[u8; 129] = include_bytes!("./sauce.bin");
 fn convert_blocks_to_ans(blocks: &Vec<Block>, font: &Font, columns: u32) -> Vec<u8> {
     let mut ans: Vec<u8> = Vec::new();
     for block in blocks {
+        if let Some(bg) = block.bg {
+            let bg_string = format!("\x1b[0;{};{};{}t", bg[0], bg[1], bg[2]);
+            ans.append(bg_string.as_bytes().to_vec().as_mut());
+        }
         let fg = block.fg;
-        let bg = block.bg;
-        let bg_string = format!("\x1b[0;{};{};{}t", bg[0], bg[1], bg[2]);
         let fg_string = format!("\x1b[1;{};{};{}t", fg[0], fg[1], fg[2]);
-        ans.append(bg_string.as_bytes().to_vec().as_mut());
         ans.append(fg_string.as_bytes().to_vec().as_mut());
         ans.push(block.codepoint);
     }

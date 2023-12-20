@@ -2,6 +2,8 @@ use image::{imageops::FilterType, DynamicImage, GenericImage, GenericImageView, 
 use imagequant::RGBA;
 use std::fmt::Display;
 
+static BLACK: [u8; 4] = [0, 0, 0, 255];
+
 struct Match {
     pub codepoint: u8,
     pub fg: u8,
@@ -65,10 +67,10 @@ impl Font {
         self.bitmask[start as usize..end as usize].iter()
     }
 
-    pub fn render_codepoint(&self, codepoint: u8, fg: [u8; 4], bg: [u8; 4]) -> Codepoint {
+    pub fn render_codepoint(&self, codepoint: u8, fg: [u8; 4], bg: Option<[u8; 4]>) -> Codepoint {
         let bytes = self
             .bits_for_codepoint(codepoint)
-            .map(|bit| if *bit == 1 { fg } else { bg })
+            .map(|bit| if *bit == 1 { fg } else { bg.unwrap_or(BLACK) })
             .collect();
         Codepoint {
             width: self.width,
@@ -246,7 +248,7 @@ impl AsTextSections for DynamicImage {
 
 pub struct Block {
     pub fg: [u8; 4],
-    pub bg: [u8; 4],
+    pub bg: Option<[u8; 4]>,
     pub codepoint: u8,
     pub column: u32,
     pub row: u32,
@@ -256,19 +258,23 @@ pub fn convert_image(image: &DynamicImage, font: &Font, columns: u32) -> Vec<Blo
     image
         .as_text_sections(columns, font.width, font.height)
         .map(|section| {
-            let best = font.find_closest_bitmask(&section.pixels);
-            let fg = if section.palette.len() == 1 {
-                section.palette[best.bg as usize]
+            if section.palette.len() == 1 {
+                Block {
+                    fg: section.palette[0],
+                    bg: None,
+                    codepoint: 219,
+                    column: section.column,
+                    row: section.row,
+                }
             } else {
-                section.palette[best.fg as usize]
-            };
-            let bg = section.palette[best.bg as usize];
-            Block {
-                fg,
-                bg,
-                codepoint: best.codepoint,
-                column: section.column,
-                row: section.row,
+                let best = font.find_closest_bitmask(&section.pixels);
+                Block {
+                    fg: section.palette[best.fg as usize],
+                    bg: Some(section.palette[best.bg as usize]),
+                    codepoint: best.codepoint,
+                    column: section.column,
+                    row: section.row,
+                }
             }
         })
         .collect()
