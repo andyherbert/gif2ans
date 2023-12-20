@@ -1,6 +1,6 @@
 mod converter;
 use clap::Parser;
-use converter::{convert_image, Block, Font};
+use converter::{convert_image, get_cga_color, Block, Font};
 use image::DynamicImage;
 use std::error;
 use std::fs::File;
@@ -10,16 +10,38 @@ use std::path::{Path, PathBuf};
 
 static SAUCE_BYTES: &[u8; 129] = include_bytes!("./sauce.bin");
 
-fn convert_blocks_to_ans(blocks: &Vec<Block>, font: &Font, columns: u32) -> Vec<u8> {
+fn convert_blocks_to_ans(
+    blocks: &Vec<Block>,
+    font: &Font,
+    columns: u32,
+    truecolor: bool,
+) -> Vec<u8> {
     let mut ans: Vec<u8> = Vec::new();
     for block in blocks {
-        if let Some(bg) = block.bg {
-            let bg_string = format!("\x1b[0;{};{};{}t", bg[0], bg[1], bg[2]);
+        ans.append("\x1b[0;".as_bytes().to_vec().as_mut());
+        if let Some(bg) = block.cga_bg {
+            let bg_string = if bg >= 8 {
+                format!("5;{};", 40 + bg % 8)
+            } else {
+                format!("{};", 40 + bg)
+            };
             ans.append(bg_string.as_bytes().to_vec().as_mut());
         }
-        let fg = block.fg;
-        let fg_string = format!("\x1b[1;{};{};{}t", fg[0], fg[1], fg[2]);
+        let fg_string = if block.cga_fg >= 8 {
+            format!("1;{}m", 30 + block.cga_fg % 8)
+        } else {
+            format!("{}m", 30 + block.cga_fg)
+        };
         ans.append(fg_string.as_bytes().to_vec().as_mut());
+        if truecolor {
+            if let Some(bg) = block.bg {
+                let bg_string = format!("\x1b[0;{};{};{}t", bg[0], bg[1], bg[2]);
+                ans.append(bg_string.as_bytes().to_vec().as_mut());
+            }
+            let fg = block.fg;
+            let fg_string = format!("\x1b[1;{};{};{}t", fg[0], fg[1], fg[2]);
+            ans.append(fg_string.as_bytes().to_vec().as_mut());
+        }
         ans.push(block.codepoint);
     }
     let mut sauce = SAUCE_BYTES.to_vec();
@@ -33,11 +55,21 @@ fn convert_blocks_to_ans(blocks: &Vec<Block>, font: &Font, columns: u32) -> Vec<
     ans
 }
 
-fn convert_blocks_to_image(blocks: &Vec<Block>, font: &Font, columns: u32) -> DynamicImage {
+fn convert_blocks_to_image(
+    blocks: &Vec<Block>,
+    font: &Font,
+    columns: u32,
+    truecolor: bool,
+) -> DynamicImage {
     let rows = (blocks.len() as u32) / columns;
     let mut image = DynamicImage::new_rgba8(columns * font.width, rows * font.height);
     for block in blocks {
-        let codepoint = font.render_codepoint(block.codepoint, block.fg, block.bg);
+        let (fg, bg) = if truecolor {
+            (block.fg, block.bg)
+        } else {
+            (get_cga_color(block.cga_fg), block.cga_bg.map(get_cga_color))
+        };
+        let codepoint = font.render_codepoint(block.codepoint, fg, bg);
         font.draw_codepoint(
             &mut image,
             &codepoint,
@@ -60,6 +92,14 @@ struct Cli {
     /// Generates an PNG image file
     #[clap(long, action, value_name = "Output an image file")]
     image: bool,
+    /// Use 24-bit color
+    #[clap(
+        long,
+        action,
+        default_value = "false",
+        value_name = "Defaults to CGA colors"
+    )]
+    truecolor: bool,
     #[clap(value_name = "INPUT")]
     input: PathBuf,
     #[clap(value_name = "OUTPUT")]
@@ -75,7 +115,7 @@ fn convert(cli: Cli) -> Result<(), Box<dyn error::Error>> {
         Font::ibm_vga()
     };
     let blocks = convert_image(&image, &font, cli.columns as u32);
-    let bytes = convert_blocks_to_ans(&blocks, &font, cli.columns as u32);
+    let bytes = convert_blocks_to_ans(&blocks, &font, cli.columns as u32, cli.truecolor);
     let mut out_path = PathBuf::from(&cli.output);
     let file = File::create(&out_path)?;
     let mut writer = BufWriter::new(file);
@@ -83,7 +123,7 @@ fn convert(cli: Cli) -> Result<(), Box<dyn error::Error>> {
     writer.flush()?;
     println!("Wrote {:?}", out_path);
     if cli.image {
-        let image = convert_blocks_to_image(&blocks, &font, cli.columns as u32);
+        let image = convert_blocks_to_image(&blocks, &font, cli.columns as u32, cli.truecolor);
         out_path.set_extension("ans.png");
         image.save(&out_path)?;
         println!("Wrote {:?}", out_path);

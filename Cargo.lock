@@ -258,12 +258,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "gif2ans24"
+name = "gif2ans"
 version = "0.1.0"
 dependencies = [
  "clap",
  "image",
  "imagequant",
+ "oklab",
 ]
 
 [[package]]
@@ -385,6 +386,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "oklab"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e86d5de54a7f00130a409cce9924bc39d5ab2f089000432c6a3453b9182ec42"
+dependencies = [
+ "rgb",
 ]
 
 [[package]]

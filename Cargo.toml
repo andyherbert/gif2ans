@@ -1,11 +1,12 @@
 [package]
-name = "gif2ans24"
+name = "gif2ans"
 version = "0.1.0"
 edition = "2021"
 authors = ["Andy Herbert <andy.herbert@gmail.com>"]
-description = "Converts Images to 24-bit ANSi Files"
+description = "Converts Images to ANSi Files"
 
 [dependencies]
 image = "0.24"
 imagequant = "4.2"
 clap = { version = "4.4", features = ["derive"] }
+oklab = "1.0"

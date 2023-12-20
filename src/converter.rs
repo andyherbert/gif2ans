@@ -1,8 +1,55 @@
 use image::{imageops::FilterType, DynamicImage, GenericImage, GenericImageView, Rgba};
 use imagequant::RGBA;
+use oklab::{srgb_to_oklab, RGB};
 use std::fmt::Display;
 
 static BLACK: [u8; 4] = [0, 0, 0, 255];
+
+static CGA_PALETTE: [RGB<u8>; 16] = [
+    RGB::new(0, 0, 0),
+    RGB::new(170, 0, 0),
+    RGB::new(0, 170, 0),
+    RGB::new(170, 85, 0),
+    RGB::new(0, 0, 170),
+    RGB::new(170, 0, 170),
+    RGB::new(0, 170, 170),
+    RGB::new(170, 170, 170),
+    RGB::new(85, 85, 85),
+    RGB::new(255, 85, 85),
+    RGB::new(85, 255, 85),
+    RGB::new(255, 255, 85),
+    RGB::new(85, 85, 255),
+    RGB::new(255, 85, 255),
+    RGB::new(85, 255, 255),
+    RGB::new(255, 255, 255),
+];
+
+pub fn get_cga_color(index: u8) -> [u8; 4] {
+    let cga_color = CGA_PALETTE[index as usize];
+    [cga_color.r, cga_color.g, cga_color.b, 255]
+}
+
+pub fn find_closest_cga_color(color: [u8; 4]) -> u8 {
+    let mut best: Option<usize> = None;
+    let mut best_distance: Option<f32> = None;
+    let color_ok = srgb_to_oklab(RGB::new(color[0], color[1], color[2]));
+    for (index, cga_color) in CGA_PALETTE.iter().enumerate() {
+        let cga_color_ok = srgb_to_oklab(RGB::new(cga_color.r, cga_color.g, cga_color.b));
+        let distance = (color_ok.l - cga_color_ok.l).powi(2)
+            + (color_ok.a - cga_color_ok.a).powi(2)
+            + (color_ok.b - cga_color_ok.b).powi(2);
+        if let Some(best_value) = best_distance.as_mut() {
+            if distance < *best_value {
+                best = Some(index);
+                *best_value = distance;
+            }
+        } else {
+            best = Some(index);
+            best_distance = Some(distance);
+        }
+    }
+    best.expect("cga color") as u8
+}
 
 struct Match {
     pub codepoint: u8,
@@ -249,6 +296,8 @@ impl AsTextSections for DynamicImage {
 pub struct Block {
     pub fg: [u8; 4],
     pub bg: Option<[u8; 4]>,
+    pub cga_fg: u8,
+    pub cga_bg: Option<u8>,
     pub codepoint: u8,
     pub column: u32,
     pub row: u32,
@@ -262,15 +311,21 @@ pub fn convert_image(image: &DynamicImage, font: &Font, columns: u32) -> Vec<Blo
                 Block {
                     fg: section.palette[0],
                     bg: None,
+                    cga_fg: find_closest_cga_color(section.palette[0]),
+                    cga_bg: None,
                     codepoint: 219,
                     column: section.column,
                     row: section.row,
                 }
             } else {
                 let best = font.find_closest_bitmask(&section.pixels);
+                let fg = section.palette[best.fg as usize];
+                let bg = section.palette[best.bg as usize];
                 Block {
-                    fg: section.palette[best.fg as usize],
-                    bg: Some(section.palette[best.bg as usize]),
+                    fg,
+                    bg: Some(bg),
+                    cga_fg: find_closest_cga_color(fg),
+                    cga_bg: Some(find_closest_cga_color(bg)),
                     codepoint: best.codepoint,
                     column: section.column,
                     row: section.row,
