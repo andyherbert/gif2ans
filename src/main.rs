@@ -1,4 +1,5 @@
 mod converter;
+use chrono::Datelike;
 use clap::Parser;
 use converter::{convert_image, get_cga_color, Block, Font};
 use image::DynamicImage;
@@ -50,6 +51,16 @@ fn convert_blocks_to_ans(
     let rows = (blocks.len() as u32) / columns;
     sauce[99..=100].copy_from_slice((rows as u16).to_le_bytes().as_ref());
     let font_string = font.to_string();
+    let now = chrono::Utc::now();
+    let year = now.year();
+    let year_string = format!("{:04}", year);
+    sauce[83..87].copy_from_slice(year_string.as_bytes());
+    let month = now.month();
+    let month_string = format!("{:02}", month);
+    sauce[87..89].copy_from_slice(month_string.as_bytes());
+    let day = now.day();
+    let day_string = format!("{:02}", day);
+    sauce[89..91].copy_from_slice(day_string.as_bytes());
     sauce[107..(107 + font_string.len())].copy_from_slice(font_string.as_bytes());
     ans.append(&mut sauce);
     ans
