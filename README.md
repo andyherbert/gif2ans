@@ -16,4 +16,4 @@ Options:
   -V, --version               Print version
 ```
 
-  ![images/lenna.bmp converted to ANSI Art](ans/lenna.ans.png)
+![images/lenna.bmp converted to ANSI Art](ans/lenna.ans.png)
