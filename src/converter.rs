@@ -135,14 +135,21 @@ impl Font {
         }
     }
 
-    fn find_closest_bitmask(&self, other: &[u8]) -> Match {
+    fn find_closest_bitmask(&self, other: &[u8], restrict: bool) -> Match {
         let mut best = Match {
             codepoint: 0,
             fg: 0,
             bg: 0,
         };
         let mut best_count = 0;
-        for codepoint in 0..=255 {
+        let range: Vec<u8> = if restrict {
+            [32, 176, 177, 178, 219, 220, 221, 222, 223]
+                .into_iter()
+                .collect()
+        } else {
+            (0..=255).collect()
+        };
+        for codepoint in range {
             if codepoint == 9
                 || codepoint == 10
                 || codepoint == 13
@@ -303,7 +310,12 @@ pub struct Block {
     pub row: u32,
 }
 
-pub fn convert_image(image: &DynamicImage, font: &Font, columns: u32) -> Vec<Block> {
+pub fn convert_image(
+    image: &DynamicImage,
+    font: &Font,
+    columns: u32,
+    restrict: bool,
+) -> Vec<Block> {
     image
         .as_text_sections(columns, font.width, font.height)
         .map(|section| {
@@ -318,7 +330,7 @@ pub fn convert_image(image: &DynamicImage, font: &Font, columns: u32) -> Vec<Blo
                     row: section.row,
                 }
             } else {
-                let best = font.find_closest_bitmask(&section.pixels);
+                let best = font.find_closest_bitmask(&section.pixels, restrict);
                 let fg = section.palette[best.fg as usize];
                 let bg = section.palette[best.bg as usize];
                 Block {

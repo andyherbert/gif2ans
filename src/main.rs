@@ -100,6 +100,9 @@ struct Cli {
     /// Number of columns
     #[clap(long, value_name = "1 to 65535", default_value = "80")]
     columns: u16,
+    #[clap(long, action)]
+    /// Restrict character set to shading, half blocks, vertical blocks and full block
+    restrict: bool,
     /// Generates an PNG image file
     #[clap(long, action, value_name = "Output an image file")]
     image: bool,
@@ -125,7 +128,7 @@ fn convert(cli: Cli) -> Result<(), Box<dyn error::Error>> {
     } else {
         Font::ibm_vga()
     };
-    let blocks = convert_image(&image, &font, cli.columns as u32);
+    let blocks = convert_image(&image, &font, cli.columns as u32, cli.restrict);
     let bytes = convert_blocks_to_ans(&blocks, &font, cli.columns as u32, cli.truecolor);
     let mut out_path = PathBuf::from(&cli.output);
     let file = File::create(&out_path)?;
