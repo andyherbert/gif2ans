@@ -95,19 +95,20 @@ fn convert_blocks_to_image(
 #[clap(version, about, long_about = None)]
 struct Cli {
     /// Use 8x8 font
-    #[clap(long, action, value_name = "Defaults to 8x16")]
+    #[clap(short, long, action, value_name = "Defaults to 8x16")]
     vga50: bool,
     /// Number of columns
-    #[clap(long, value_name = "1 to 65535", default_value = "80")]
+    #[clap(short, long, value_name = "1 to 65535", default_value = "80")]
     columns: u16,
-    #[clap(long, action)]
+    #[clap(short, long, action)]
     /// Restrict character set to shading, half blocks, vertical blocks and full block
     restrict: bool,
     /// Generates an PNG image file
-    #[clap(long, action, value_name = "Output an image file")]
+    #[clap(short, long, action, value_name = "Output an image file")]
     image: bool,
     /// Use 24-bit color
     #[clap(
+        short,
         long,
         action,
         default_value = "false",
